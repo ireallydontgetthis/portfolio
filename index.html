@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your Name</title>
+<style>
+  :root {
+    --ink: #f5f2ec;
+    --panel: #14161a;
+    --panel-text: #e8e6e1;
+    --muted: #9a9a95;
+    --accent: #7fb6a4;
+    --fade: 1.4s;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #000; }
+  body { font-family: Georgia, "Times New Roman", serif; color: var(--ink); }
+
+  /* ---------- Rotating background ---------- */
+  #stage { position: fixed; inset: 0; }
+  .slide {
+    position: absolute; inset: 0;
+    opacity: 0; transition: opacity var(--fade) ease;
+    background-size: cover; background-position: center;
+  }
+  .slide.active { opacity: 1; }
+  .slide video { width: 100%; height: 100%; object-fit: cover; }
+  #stage::after {            /* soft dark layer so text stays readable */
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(to bottom, rgba(0,0,0,.35), rgba(0,0,0,.1) 40%, rgba(0,0,0,.55));
+  }
+
+  /* ---------- Title ---------- */
+  .title {
+    position: fixed; left: 5vw; bottom: 7vh; z-index: 2;
+  }
+  .title h1 { font-size: clamp(2.4rem, 7vw, 5.5rem); font-weight: 400; letter-spacing: -.02em; line-height: 1; }
+  .title p { margin-top: .8rem; font-size: 1.1rem; color: rgba(245,242,236,.8); }
+
+  /* ---------- Menu button ---------- */
+  #menuBtn {
+    position: fixed; top: 24px; right: 24px; z-index: 5;
+    width: 52px; height: 52px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,.5);
+    background: rgba(0,0,0,.35); backdrop-filter: blur(6px);
+    cursor: pointer; display: grid; place-content: center; gap: 6px;
+  }
+  #menuBtn span { display: block; width: 22px; height: 2px; background: #fff; transition: transform .3s, opacity .3s; }
+  #menuBtn.open span:nth-child(1) { transform: translateY(8px) rotate(45deg); }
+  #menuBtn.open span:nth-child(2) { opacity: 0; }
+  #menuBtn.open span:nth-child(3) { transform: translateY(-8px) rotate(-45deg); }
+  #menuBtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  /* ---------- Side menu ---------- */
+  #menu {
+    position: fixed; top: 0; right: 0; bottom: 0; z-index: 4;
+    width: min(440px, 100vw); background: var(--panel); color: var(--panel-text);
+    padding: 110px 40px 40px; overflow-y: auto;
+    transform: translateX(100%); transition: transform .45s cubic-bezier(.2,.8,.2,1);
+  }
+  #menu.open { transform: none; }
+  .links { list-style: none; }
+  .links a {
+    display: block; padding: 1.1rem 0; border-bottom: 1px solid #2a2d33;
+    color: var(--panel-text); text-decoration: none; font-size: 1.7rem;
+    transition: color .2s, padding-left .2s;
+  }
+  .links a:hover { color: var(--accent); padding-left: .5rem; }
+  .links a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  #scrim { position: fixed; inset: 0; z-index: 3; background: rgba(0,0,0,.4); opacity: 0; pointer-events: none; transition: opacity .4s; }
+  #scrim.open { opacity: 1; pointer-events: auto; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .slide, #menu, #menuBtn span { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Rotating images / videos -->
+<div id="stage"></div>
+
+<div class="title">
+  <h1>Your Name</h1>
+  <p>Researcher &amp; creative</p>
+</div>
+
+<button id="menuBtn" aria-label="Open menu" aria-expanded="false" aria-controls="menu">
+  <span></span><span></span><span></span>
+</button>
+<div id="scrim"></div>
+
+<aside id="menu" aria-hidden="true">
+  <ul class="links">
+    <li><a href="about.html">About me</a></li>
+    <li><a href="research.html">Research</a></li>
+    <li><a href="creative.html">Creative projects</a></li>
+  </ul>
+</aside>
+
+<script>
+  /* ===== EDIT THIS LIST =====
+     Put your files in the same folder (e.g. an "media" folder) and list them here.
+     type: "image" or "video". Videos should be short, muted .mp4 files. */
+  const MEDIA = [
+    { type: "image", src: "media/photo1.jpg" },
+    { type: "image", src: "media/photo2.jpg" },
+    { type: "video", src: "media/clip1.mp4" },
+    { type: "image", src: "media/photo3.jpg" }
+  ];
+  const SECONDS = 5; // how long each image stays; videos play until they end
+
+  const stage = document.getElementById("stage");
+  const fallbacks = ["#2d3a3a", "#3b2f3f", "#2f3a4a", "#4a3d2f"]; // shown if a file is missing
+
+  const slides = MEDIA.map((m, i) => {
+    const el = document.createElement("div");
+    el.className = "slide";
+    el.style.backgroundColor = fallbacks[i % fallbacks.length];
+    if (m.type === "image") {
+      el.style.backgroundImage = `url("${m.src}")`;
+    } else {
+      const v = document.createElement("video");
+      v.src = m.src; v.muted = true; v.playsInline = true; v.preload = "auto";
+      el.appendChild(v);
+      el._video = v;
+    }
+    stage.appendChild(el);
+    return el;
+  });
+
+  let index = -1, timer;
+  function show(next) {
+    clearTimeout(timer);
+    if (slides[index]) {
+      slides[index].classList.remove("active");
+      if (slides[index]._video) slides[index]._video.pause();
+    }
+    index = next % slides.length;
+    const el = slides[index];
+    el.classList.add("active");
+    if (el._video) {
+      el._video.currentTime = 0;
+      el._video.play().catch(() => {});
+      el._video.onended = () => show(index + 1);
+      timer = setTimeout(() => show(index + 1), 60000); // safety net
+    } else {
+      timer = setTimeout(() => show(index + 1), SECONDS * 1000);
+    }
+  }
+  if (slides.length) show(0);
+
+  /* ----- Menu ----- */
+  const btn = document.getElementById("menuBtn");
+  const menu = document.getElementById("menu");
+  const scrim = document.getElementById("scrim");
+  function toggle(open) {
+    btn.classList.toggle("open", open);
+    menu.classList.toggle("open", open);
+    scrim.classList.toggle("open", open);
+    btn.setAttribute("aria-expanded", open);
+    menu.setAttribute("aria-hidden", !open);
+  }
+  btn.onclick = () => toggle(!menu.classList.contains("open"));
+  scrim.onclick = () => toggle(false);
+  document.addEventListener("keydown", e => { if (e.key === "Escape") toggle(false); });
+
+</script>
+</body>
+</html>
